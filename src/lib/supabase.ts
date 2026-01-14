@@ -1,36 +1,46 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Debug: Log environment variables (remove in production)
-console.log('SUPABASE_URL:', supabaseUrl ? '✅ Present' : '❌ Missing');
-console.log('SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Present' : '❌ Missing');
+// Check if we're in production without env vars (show warning, don't crash)
+const isMissingConfig = !supabaseUrl || !supabaseAnonKey;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Supabase environment variables are missing. Check .env.local'
+if (isMissingConfig) {
+  console.warn(
+    '⚠️ Supabase environment variables are missing. ' +
+    'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment. ' +
+    'Auth and database features will not work.'
   );
 }
 
-// Validate URL format
-if (!supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
-  console.error('❌ Invalid Supabase URL format. Expected: https://<project-id>.supabase.co');
+// Create a mock client or real client depending on config
+let supabase: SupabaseClient;
+
+if (isMissingConfig) {
+  // Create a dummy client with placeholder values to prevent crashes
+  // This allows the UI to render even without backend
+  supabase = createClient(
+    'https://placeholder.supabase.co',
+    'placeholder-key',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+} else {
+  // Real client with proper configuration
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'wordbuddy-auth',
+    },
+  });
+  console.log('✅ Supabase client initialized');
 }
 
-// Create Supabase client with proper auth configuration
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    // Store session in localStorage for persistence
-    persistSession: true,
-    // Automatically refresh the token
-    autoRefreshToken: true,
-    // Detect session from URL (for OAuth redirects)
-    detectSessionInUrl: true,
-    // Storage key for the session
-    storageKey: 'wordbuddy-auth',
-  },
-});
-
-// Debug: Log client creation
-console.log('✅ Supabase client initialized');
+export { supabase, isMissingConfig };
