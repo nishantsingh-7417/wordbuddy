@@ -1,6 +1,8 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, BookOpen, GraduationCap, BarChart3 } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Search, BookOpen, GraduationCap, BarChart3, LogIn, UserPlus, LogOut, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,6 +18,13 @@ const navItems = [
 
 export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -51,6 +60,46 @@ export const Layout = ({ children }: LayoutProps) => {
               );
             })}
           </nav>
+
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-2">
+            {loading ? (
+              <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+            ) : user ? (
+              /* Logged In State */
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+                  <User className="w-4 h-4" />
+                  <span className="max-w-[120px] truncate">{user.email}</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleLogout}
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </div>
+            ) : (
+              /* Logged Out State */
+              <>
+                <Link to="/login">
+                  <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                    <LogIn className="w-4 h-4" />
+                    <span className="hidden sm:inline">Login</span>
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button variant="default" size="sm" className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sign Up</span>
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
