@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, BookOpen, GraduationCap, BarChart3, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, BookOpen, GraduationCap, BarChart3, ArrowRight, Sparkles, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Layout } from '@/components/Layout';
+import { LexiAIModal } from '@/components/LexiAIModal';
 
 const steps = [
   {
@@ -28,6 +30,8 @@ const steps = [
 ];
 
 const Index = () => {
+  const [isLexiModalOpen, setIsLexiModalOpen] = useState(false);
+
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
@@ -59,6 +63,15 @@ const Index = () => {
                 <GraduationCap className="w-5 h-5" />
                 Start Revision
               </Link>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg"
+              onClick={() => setIsLexiModalOpen(true)}
+              className="border-2 border-purple-500/50 hover:bg-purple-500/10 hover:border-purple-500"
+            >
+              <MessageCircle className="w-5 h-5 text-purple-500" />
+              Talk with Lexi AI
             </Button>
           </div>
         </section>
@@ -114,6 +127,12 @@ const Index = () => {
           </Card>
         </section>
       </div>
+
+      {/* Lexi AI Modal */}
+      <LexiAIModal 
+        isOpen={isLexiModalOpen} 
+        onClose={() => setIsLexiModalOpen(false)} 
+      />
     </Layout>
   );
 };
