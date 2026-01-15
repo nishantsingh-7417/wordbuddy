@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Search, BookOpen, Lightbulb, MessageSquare, Check, Loader2, Tag, Repeat, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Search, BookOpen, Lightbulb, MessageSquare, Check, Loader2, Tag, Repeat, ThumbsUp, ThumbsDown, Brain, Languages, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Layout } from '@/components/Layout';
 import { searchWord, WordDefinition } from '@/lib/dictionary';
+import { fetchAIWordData, AIWordResponse } from '@/lib/relevanceAI';
 import { saveWord, wordExists } from '@/lib/vocabulary';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +13,10 @@ import { useAuth } from '@/contexts/AuthContext';
 const SearchPage = () => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAILoading, setIsAILoading] = useState(false);
   const [result, setResult] = useState<WordDefinition | null>(null);
+  const [aiData, setAiData] = useState<AIWordResponse | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
@@ -27,12 +31,31 @@ const SearchPage = () => {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setAiData(null);
+    setShowAdvanced(false);
     setSaved(false);
 
     const definition = await searchWord(query);
 
     if (definition) {
       setResult(definition);
+      setIsLoading(false);
+      
+      // Fetch AI-enhanced data in parallel (non-blocking)
+      setIsAILoading(true);
+      fetchAIWordData(definition.word.toLowerCase())
+        .then((aiResponse) => {
+          if (aiResponse) {
+            setAiData(aiResponse);
+          }
+        })
+        .catch((err) => {
+          console.error('[SearchPage] AI fetch failed:', err);
+          // Silent failure - dictionary results remain visible
+        })
+        .finally(() => {
+          setIsAILoading(false);
+        });
       
       // Auto-save the word if user is authenticated
       if (isAuthenticated) {
@@ -67,9 +90,8 @@ const SearchPage = () => {
       // Unauthenticated users: no save, no toast, no errors
     } else {
       setError("Couldn't find this word. Please check the spelling and try again.");
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -310,6 +332,165 @@ const SearchPage = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* AI-Enhanced Content */}
+            {isAILoading && (
+              <Card variant="interactive">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Loading AI insights...</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {aiData && (
+              <>
+                {/* Hindi Meaning - Always Visible */}
+                {aiData.core.hindi_meaning && (
+                  <Card variant="interactive">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+                          <Languages className="w-6 h-6 text-violet-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg mb-1">Hindi Meaning</h3>
+                          <p className="text-muted-foreground">{aiData.core.hindi_meaning}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Thinking Section - Always Visible */}
+                {(aiData.thinking.hindi_thought || aiData.thinking.english_thought) && (
+                  <Card variant="interactive">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <Brain className="w-6 h-6 text-amber-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-3">Think About It</h3>
+                          {aiData.thinking.hindi_thought && (
+                            <p className="text-muted-foreground mb-2 italic">
+                              "{aiData.thinking.hindi_thought}"
+                            </p>
+                          )}
+                          {aiData.thinking.english_thought && (
+                            <p className="text-muted-foreground text-sm">
+                              → {aiData.thinking.english_thought}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Practice Prompt - Always Visible */}
+                {aiData.practice.prompt && (
+                  <Card variant="interactive" className="border-2 border-dashed border-primary/30">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-2">Practice Time!</h3>
+                          <p className="text-muted-foreground font-medium">
+                            {aiData.practice.prompt}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Show More Toggle */}
+                <Button
+                  variant="ghost"
+                  className="w-full flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  {showAdvanced ? (
+                    <>
+                      <ChevronUp className="w-4 h-4" />
+                      Show less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-4 h-4" />
+                      Show more about this word
+                    </>
+                  )}
+                </Button>
+
+                {/* Advanced Section - Expanded View Only */}
+                {showAdvanced && (
+                  <div className="space-y-4 animate-fade-up">
+                    {/* Common Confusion */}
+                    {aiData.advanced.confusion && (
+                      <Card variant="interactive">
+                        <CardContent className="p-5">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
+                              <Lightbulb className="w-6 h-6 text-orange-500" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg mb-1">Common Mistake</h3>
+                              <p className="text-muted-foreground">{aiData.advanced.confusion}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Related Words from AI */}
+                    {aiData.advanced.related_words.length > 0 && (
+                      <Card variant="interactive">
+                        <CardContent className="p-5">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+                              <Tag className="w-6 h-6 text-teal-500" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-bold text-lg mb-2">Related Words</h3>
+                              <div className="flex flex-wrap gap-2">
+                                {aiData.advanced.related_words.map((word, idx) => (
+                                  <span key={idx} className="px-3 py-1 bg-teal-500/10 text-teal-700 dark:text-teal-300 rounded-full text-sm font-medium">
+                                    {word}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Memory Trick */}
+                    {aiData.advanced.memory_trick && (
+                      <Card variant="interactive" className="bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+                        <CardContent className="p-5">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
+                              <Brain className="w-6 h-6 text-purple-500" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg mb-1">Memory Trick</h3>
+                              <p className="text-muted-foreground">{aiData.advanced.memory_trick}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
